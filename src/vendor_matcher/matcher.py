@@ -8,11 +8,14 @@ to call at all — is routed to a review queue instead of being auto-committed.
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass
 from typing import Callable, Optional
 
 from .llm_client import LlmJudgement
+
+logger = logging.getLogger(__name__)
 
 LlmJudge = Callable[[str, list[str]], LlmJudgement]
 
@@ -61,6 +64,7 @@ class VendorMatcher:
         try:
             judgement = self.llm_judge(raw_name, self.master_names)
         except Exception as exc:  # noqa: BLE001 - fail-safe by design, not a bug
+            logger.warning("LLM call failed for %r, routing to review queue: %s", raw_name, exc)
             return MatchResult(
                 raw_name, None, 0, True, f"LLM呼び出しに失敗したため要確認: {exc}"
             )

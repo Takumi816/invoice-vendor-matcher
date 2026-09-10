@@ -1,5 +1,7 @@
 # invoice-vendor-matcher
 
+![Tests](https://github.com/Takumi816/invoice-vendor-matcher/actions/workflows/test.yml/badge.svg)
+
 請求書に記載された業者名の表記ゆれ（法人格の有無・全角半角・旧字体など）を、LLMを使って業者マスターと突合するツールです。実務で担当した警備会社向けの請求業務改善で採用した「最後は人が確認・承認する」という設計思想を、LLM照合というテーマに移植し、機密データを一切含まないダミーデータで再構成しています。
 
 ## なぜ全自動化しなかったか
@@ -28,6 +30,30 @@ pytest -v
 
 # 実際にLLMを使ったデモ（要 ANTHROPIC_API_KEY）
 ANTHROPIC_API_KEY=sk-... python run_demo.py
+```
+
+### 実行例（`pytest -v`）
+
+CI（GitHub Actions・Python 3.10〜3.13のマトリクス）とローカル（Python 3.14）の両方で以下が再現します。実データではなく `tests/test_matcher.py` 内の疑似LLM（`fake_llm` 関数を都度差し替え）だけで、高確信度・低確信度・候補なし・API障害・境界値の全分岐を検証しています。
+
+```
+============================= test session starts ==============================
+collected 12 items
+
+tests/test_matcher.py::TestNormalize::test_strips_whitespace_and_folds_case PASSED [  8%]
+tests/test_matcher.py::TestNormalize::test_preserves_legal_entity_notation PASSED [ 16%]
+tests/test_matcher.py::TestExactMatch::test_exact_match_bypasses_llm_entirely PASSED [ 25%]
+tests/test_matcher.py::TestExactMatch::test_whitespace_only_difference_is_still_exact_match PASSED [ 33%]
+tests/test_matcher.py::TestLlmAssistedMatch::test_high_confidence_match_is_auto_confirmed PASSED [ 41%]
+tests/test_matcher.py::TestLlmAssistedMatch::test_low_confidence_match_is_escalated_not_auto_committed PASSED [ 50%]
+tests/test_matcher.py::TestLlmAssistedMatch::test_no_candidate_is_escalated PASSED [ 58%]
+tests/test_matcher.py::TestLlmAssistedMatch::test_llm_failure_fails_safe_to_review_queue PASSED [ 66%]
+tests/test_matcher.py::TestLlmAssistedMatch::test_confidence_exactly_at_threshold_is_auto_confirmed PASSED [ 75%]
+tests/test_matcher.py::TestMatchAll::test_processes_each_name_independently PASSED [ 83%]
+tests/test_matcher.py::TestConstructorValidation::test_rejects_out_of_range_threshold[-1] PASSED [ 91%]
+tests/test_matcher.py::TestConstructorValidation::test_rejects_out_of_range_threshold[101] PASSED [100%]
+
+============================== 12 passed in 0.01s ==============================
 ```
 
 ## 構成
