@@ -13,8 +13,8 @@
 そこで、このツールは3段階の確信度に応じて挙動を変えます。
 
 1. **完全一致**（正規化後）は無条件で自動確定します。この場合LLMは呼びません。表記が完全に一致している業者名にまでAPIコストと待ち時間をかける理由がないからです。
-2. **LLMが高い確信度で候補を示した場合**のみ自動確定します。
-3. **確信度が閾値未満・候補なし・API呼び出し自体の失敗**——このいずれかに該当する場合は、自動確定させず「要確認」キューに積みます。人が最後に見て承認する前提です。
+2. **LLMが高い確信度で、かつ業者マスターに実在する候補を示した場合**のみ自動確定します。
+3. **確信度が閾値未満・候補なし・マスターに無い候補・API呼び出し自体の失敗**——このいずれかに該当する場合は、自動確定させず「要確認」キューに積みます。人が最後に見て承認する前提です。
 
 「AIが間違えないこと」を目指すのではなく、「AIが間違えても実害が出ない構造にする」ことを目指した設計です。
 
@@ -34,26 +34,29 @@ ANTHROPIC_API_KEY=sk-... python run_demo.py
 
 ### 実行例（`pytest -v`）
 
-CI（GitHub Actions・Python 3.10〜3.13のマトリクス）とローカル（Python 3.14）の両方で以下が再現します。実データではなく `tests/test_matcher.py` 内の疑似LLM（`fake_llm` 関数を都度差し替え）だけで、高確信度・低確信度・候補なし・API障害・境界値の全分岐を検証しています。
+CI（GitHub Actions・Python 3.10〜3.13のマトリクス）とローカル（Python 3.14）の両方で以下が再現します。実データではなく `tests/test_matcher.py` 内の疑似LLM（`fake_llm` 関数を都度差し替え）だけで、高確信度・低確信度・候補なし・マスターに無い候補・API障害・境界値の全分岐を検証しています。
 
 ```
 ============================= test session starts ==============================
-collected 12 items
+collected 15 items
 
-tests/test_matcher.py::TestNormalize::test_strips_whitespace_and_folds_case PASSED [  8%]
-tests/test_matcher.py::TestNormalize::test_preserves_legal_entity_notation PASSED [ 16%]
-tests/test_matcher.py::TestExactMatch::test_exact_match_bypasses_llm_entirely PASSED [ 25%]
-tests/test_matcher.py::TestExactMatch::test_whitespace_only_difference_is_still_exact_match PASSED [ 33%]
-tests/test_matcher.py::TestLlmAssistedMatch::test_high_confidence_match_is_auto_confirmed PASSED [ 41%]
-tests/test_matcher.py::TestLlmAssistedMatch::test_low_confidence_match_is_escalated_not_auto_committed PASSED [ 50%]
-tests/test_matcher.py::TestLlmAssistedMatch::test_no_candidate_is_escalated PASSED [ 58%]
-tests/test_matcher.py::TestLlmAssistedMatch::test_llm_failure_fails_safe_to_review_queue PASSED [ 66%]
-tests/test_matcher.py::TestLlmAssistedMatch::test_confidence_exactly_at_threshold_is_auto_confirmed PASSED [ 75%]
-tests/test_matcher.py::TestMatchAll::test_processes_each_name_independently PASSED [ 83%]
-tests/test_matcher.py::TestConstructorValidation::test_rejects_out_of_range_threshold[-1] PASSED [ 91%]
+tests/test_matcher.py::TestNormalize::test_strips_whitespace_and_folds_case PASSED [  6%]
+tests/test_matcher.py::TestNormalize::test_preserves_legal_entity_notation PASSED [ 13%]
+tests/test_matcher.py::TestExactMatch::test_exact_match_bypasses_llm_entirely PASSED [ 20%]
+tests/test_matcher.py::TestExactMatch::test_whitespace_only_difference_is_still_exact_match PASSED [ 26%]
+tests/test_matcher.py::TestLlmAssistedMatch::test_high_confidence_match_is_auto_confirmed PASSED [ 33%]
+tests/test_matcher.py::TestLlmAssistedMatch::test_low_confidence_match_is_escalated_not_auto_committed PASSED [ 40%]
+tests/test_matcher.py::TestLlmAssistedMatch::test_no_candidate_is_escalated PASSED [ 46%]
+tests/test_matcher.py::TestLlmAssistedMatch::test_high_confidence_candidate_not_in_master_is_escalated PASSED [ 53%]
+tests/test_matcher.py::TestLlmAssistedMatch::test_candidate_differing_in_legal_entity_notation_is_escalated PASSED [ 60%]
+tests/test_matcher.py::TestLlmAssistedMatch::test_candidate_with_stray_whitespace_resolves_to_master_name PASSED [ 66%]
+tests/test_matcher.py::TestLlmAssistedMatch::test_llm_failure_fails_safe_to_review_queue PASSED [ 73%]
+tests/test_matcher.py::TestLlmAssistedMatch::test_confidence_exactly_at_threshold_is_auto_confirmed PASSED [ 80%]
+tests/test_matcher.py::TestMatchAll::test_processes_each_name_independently PASSED [ 86%]
+tests/test_matcher.py::TestConstructorValidation::test_rejects_out_of_range_threshold[-1] PASSED [ 93%]
 tests/test_matcher.py::TestConstructorValidation::test_rejects_out_of_range_threshold[101] PASSED [100%]
 
-============================== 12 passed in 0.01s ==============================
+============================== 15 passed in 0.22s ==============================
 ```
 
 ## 構成
